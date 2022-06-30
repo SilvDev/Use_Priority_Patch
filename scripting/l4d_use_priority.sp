@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION 		"2.3"
+#define PLUGIN_VERSION 		"2.4"
 
 /*=======================================================================================
 	Plugin Info:
@@ -31,6 +31,9 @@
 
 ========================================================================================
 	Change Log:
+
+2.4 (01-Aug-2022)
+	- Plugin updated to restore Windows L4D1 functionality. Unable to replicate the crash.
 
 2.3 (12-Sep-2021)
 	- GameData and plugin updated to ignore Windows L4D1 due to crashing. Seems to be caused by last game update.
@@ -69,8 +72,8 @@
 #define CVAR_FLAGS			FCVAR_NOTIFY
 #define GAMEDATA			"l4d_use_priority"
 
-bool g_bLeft4Dead2;
-int SystemOS;
+// bool g_bLeft4Dead2;
+// int SystemOS;
 
 
 
@@ -89,9 +92,10 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
-	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
-	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
-	else
+	// if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
+	// else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
+	// else
+	if( test != Engine_Left4Dead && test != Engine_Left4Dead2 )
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
@@ -111,17 +115,15 @@ public void OnPluginStart()
 	Handle hGameData = LoadGameConfigFile(GAMEDATA);
 	if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
 
-	SystemOS = GameConfGetOffset(hGameData, "OS");
+	// SystemOS = GameConfGetOffset(hGameData, "OS");
 
-	if( g_bLeft4Dead2 || SystemOS == 1 ) // Ignore Windows L4D1 due to crashing.
+	// if( g_bLeft4Dead2 || SystemOS == 1 ) // Ignore Windows L4D1 due to crashing.
 	{
 		Handle hDetour = DHookCreateFromConf(hGameData, "CBaseEntity::GetUsePriority");
 		if( !hDetour )
 			SetFailState("Failed to find \"CBaseEntity::GetUsePriority\" signature.");
 		if( !DHookEnableDetour(hDetour, false, GetUsePriority_Pre) )
 			SetFailState("Failed to detour \"CBaseEntity::GetUsePriority\" pre.");
-		// if( !DHookEnableDetour(hDetour, true, GetUsePriority_Post) )
-			// SetFailState("Failed to detour \"CBaseEntity::GetUsePriority\" post.");
 
 		delete hDetour;
 		delete hGameData;
@@ -138,15 +140,8 @@ public void OnPluginStart()
 // ====================================================================================================
 //					DETOURS
 // ====================================================================================================
-public MRESReturn GetUsePriority_Pre(int pThis, Handle hReturn, Handle hParams)
+MRESReturn GetUsePriority_Pre(int pThis, Handle hReturn, Handle hParams)
 {
-/*
-	return MRES_Ignored;
-}
-
-public MRESReturn GetUsePriority_Post(int pThis, Handle hReturn, Handle hParams)
-{
-*/
 	if( pThis == -1 ) return MRES_Ignored;
 	int parent = GetEntPropEnt(pThis, Prop_Send, "moveparent");
 
